@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STE Slicer · AI Assistant</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <div>
+        <div class="title">AI Assistant</div>
+        <div class="subtitle">STE Slicer</div>
+      </div>
+    </div>
+    <div id="status" class="status">Подключение к слайсеру…</div>
+    <div class="actions">
+      <label class="mode" title="Интерактивный: ассистент задаёт вопросы и ждёт подтверждения после каждого этапа. Автоматический: решает сам.">
+        <input type="checkbox" id="mode-interactive" checked>
+        <span id="mode-label">Интерактивно</span>
+      </label>
+      <button id="btn-stop" class="ghost" title="Остановить ассистента" hidden>Стоп</button>
+      <button id="btn-reset" class="ghost" title="Новый чат в текущей папке">Новый чат</button>
+      <button id="btn-settings" class="ghost">Настройки</button>
+    </div>
+  </header>
+
+  <div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="side-head">
+      <span>Проекты</span>
+      <span class="side-actions">
+        <button id="btn-new-folder" class="ghost small" title="Новая папка в выбранной папке">+ Папка</button>
+        <button id="btn-new-chat" class="ghost small" title="Новый чат в выбранной папке">+ Чат</button>
+      </span>
+    </div>
+    <div id="tree" class="tree" aria-label="Папки и чаты"></div>
+    <div class="side-hint">Двойной щелчок — переименовать. Чат или папку можно перетащить в другую папку.</div>
+  </aside>
+  <div class="chat-col">
+  <div id="chat-title" class="chat-title"></div>
+  <main id="log" class="log" aria-live="polite">
+    <div class="empty" id="empty">
+      <h2>Опишите деталь и задачу печати</h2>
+      <p>Например: «Кронштейн под нагрузку, PETG, без поддержек» — и приложите STL, фото или ТЗ.</p>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <footer class="composer">
+    <div id="chips" class="chips"></div>
+    <form id="form">
+      <label class="attach" title="Прикрепить файл (STL, OBJ, 3MF, JPG, PNG, DOCX)">
+        <input id="file" type="file" multiple accept=".stl,.obj,.3mf,.jpg,.jpeg,.png,.docx">
+        <span>📎</span>
+      </label>
+      <textarea id="input" rows="1" placeholder="Сообщение… (Enter — отправить, Shift+Enter — новая строка)"></textarea>
+      <button id="send" type="submit" class="primary">Отправить</button>
+    </form>
+  </footer>
+  </div>
+  </div>
+
+  <dialog id="settings">
+    <form method="dialog" id="settings-form">
+      <h3>Подключение к LLM</h3>
+      <p class="hint">Адрес, ключ и модель выдают организаторы. Ключ хранится в настройках слайсера, а не в коде.</p>
+      <label>Base URL<input name="base_url" placeholder="https://…/v1" autocomplete="off"></label>
+      <label>API key<input name="api_key" type="password" placeholder="не изменять" autocomplete="off"></label>
+      <label>Модель<input name="model" autocomplete="off"></label>
+      <label>Папка для результатов (3MF, G-code)<input name="output_dir" autocomplete="off"></label>
+      <label>Стоимость машинного часа, ₽<input name="machine_rate_rub" inputmode="decimal" autocomplete="off"></label>
+      <div class="row">
+        <button value="cancel" class="ghost">Отмена</button>
+        <button id="save-settings" value="save" class="primary">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
