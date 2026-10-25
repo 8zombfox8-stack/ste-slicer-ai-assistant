@@ -40,29 +40,15 @@ Get-ChildItem $target -Recurse -File | Unblock-File -ErrorAction SilentlyContinu
 Write-Host ""
 Write-Host "Плагин установлен: $target" -ForegroundColor Green
 
-# The "AI Assistant" app: launcher + shortcuts on the desktop and in the Start menu
-$launcher = Join-Path $PSScriptRoot "launcher\AI Assistant.exe"
-if (Test-Path $launcher) {
-    $appDir = Join-Path $env:LOCALAPPDATA "STE_AI_Assistant"
-    New-Item -ItemType Directory -Force $appDir | Out-Null
-    $appExe = Join-Path $appDir "AI Assistant.exe"
-    Copy-Item $launcher $appExe -Force
-    # Files from a downloaded ZIP carry the "from the Internet" mark; without it Windows does not show
-    # the SmartScreen warning on every start of the app.
-    Unblock-File $appExe -ErrorAction SilentlyContinue
-    $shell = New-Object -ComObject WScript.Shell
-    $links = @([Environment]::GetFolderPath("Desktop"), (Join-Path ([Environment]::GetFolderPath("Programs")) ""))
-    foreach ($folder in $links) {
-        $link = $shell.CreateShortcut((Join-Path $folder "AI Assistant.lnk"))
-        $link.TargetPath = $appExe
-        $link.WorkingDirectory = $appDir
-        $link.Description = "STE Slicer + AI Assistant"
-        $link.Save()
-    }
-    Write-Host "Приложение установлено: значок «AI Assistant» на рабочем столе и в меню «Пуск»." -ForegroundColor Green
+# Earlier versions installed a separate "AI Assistant" launcher; the chat now lives inside the slicer.
+foreach ($old in @((Join-Path ([Environment]::GetFolderPath("Desktop")) "AI Assistant.lnk"),
+                   (Join-Path ([Environment]::GetFolderPath("Programs")) "AI Assistant.lnk"),
+                   (Join-Path $env:LOCALAPPDATA "STE_AI_Assistant"))) {
+    if (Test-Path $old) { Remove-Item $old -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 if (Get-Process STESlicer -ErrorAction SilentlyContinue) {
-    Write-Host "STE Slicer сейчас запущен — закройте его и запустите через значок «AI Assistant»." -ForegroundColor Yellow
+    Write-Host "STE Slicer сейчас запущен — закройте его и запустите снова, чтобы плагин загрузился." -ForegroundColor Yellow
 }
-Write-Host "Дальше: запустите «AI Assistant» с рабочего стола и укажите в «Настройках» адрес, ключ и модель LLM."
+Write-Host "Дальше: запустите STE Slicer — он откроется на вкладке «AI Ассистент»."
+Write-Host "В меню «⋯» → «Настройки подключения к ИИ» укажите адрес, ключ и модель LLM."
