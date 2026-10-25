@@ -127,8 +127,9 @@ class _Handler(BaseHTTPRequestHandler):
                 for key in ("base_url", "api_key", "model", "output_dir", "machine_rate_rub"):
                     if data.get(key):
                         self.settings.set(key, data[key])
-                if "interactive" in data:
-                    self.settings.set("interactive", "1" if data["interactive"] else "0")
+                for flag in ("interactive", "confirm_stages"):
+                    if flag in data:
+                        self.settings.set(flag, "1" if data[flag] else "0")
                 self._send_json(self.settings.publicView())
             elif path == "/api/respond":
                 ok = self.agent.interaction.respond(data.get("request_id"), data.get("response") or {})
@@ -219,6 +220,13 @@ class _Handler(BaseHTTPRequestHandler):
             return {"jsonrpc": "2.0", "id": req_id, "result": result}
         except Exception as e:
             return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32603, "message": str(e)}}
+
+
+def attachment_from_file(path):
+    # Used by the chat panel inside the slicer: the user picks local files there.
+    with open(path, "rb") as f:
+        raw = f.read()
+    return _save_attachment({"name": os.path.basename(path), "data": base64.b64encode(raw).decode("ascii")})
 
 
 def _save_attachment(item):

@@ -13,11 +13,11 @@ ASK_USER_TOOL = {
     "function": {
         "name": "ask_user",
         "description": (
-            "Задать пользователю 1–6 уточняющих вопросов с вариантами ответа (кнопками). Используй в начале работы: "
-            "общие вопросы (для чего деталь, сколько штук, что важнее — прочность, внешний вид, скорость или цена) и "
-            "вопросы по неясным местам ТЗ, ответ на которые меняет решение. Пользователь может пропустить вопрос — "
-            "тогда решай сам и явно назови допущение. Не добавляй вариант «Пусть решит система» — такая кнопка "
-            "уже есть в карточке. Свою рекомендацию отметь в тексте варианта: «… (рекомендую)»."),
+            "Задать пользователю 1–8 уточняющих вопросов с вариантами ответа (кнопками) на одном экране; можно "
+            "вызывать и позже по ходу работы, если появился вопрос, меняющий решение. Под каждым "
+            "вопросом есть поле «Свой вариант». Пользователь может оставить вопрос пустым — тогда решай сам, "
+            "без отдельного сообщения о допущениях. Не добавляй варианты «Не знаю», «Пусть решит система», «Другое». "
+            "Вариант, который ты советуешь, помечай « (рекомендую)»."),
         "parameters": {
             "type": "object",
             "properties": {
@@ -45,26 +45,28 @@ STAGE_TOOL = {
         "description": (
             "Завершить этап подготовки детали: показать пользователю итог этапа простым языком, принятые решения "
             "с причинами и результаты проверок, и спросить, продолжать ли. Вызывай после каждого этапа. "
-            "Если пользователь просит изменить — внеси изменения, проверь и снова вызови stage_report для этого этапа."),
+            "Если пользователь просит изменить — внеси изменения, проверь и снова вызови stage_report для этого этапа. "
+            "Карточку читает новичок: коротко, без названий настроек и чисел, которые ему ничего не скажут."),
         "parameters": {
             "type": "object",
             "properties": {
                 "stage": {"type": "integer", "description": "Номер этапа 1–7"},
-                "title": {"type": "string"},
+                "title": {"type": "string", "description": "2–4 слова"},
                 "plain_summary": {"type": "string",
-                                  "description": "2–4 предложения для человека без инженерного образования"},
-                "decisions": {"type": "array", "items": {
+                                  "description": "Одно предложение до 20 слов, обычными словами"},
+                "decisions": {"type": "array", "description": "Не больше 3 главных решений", "items": {
                     "type": "object",
-                    "properties": {"what": {"type": "string"}, "value": {"type": "string"},
+                    "properties": {"what": {"type": "string", "description": "1–2 слова: «Материал», «Опоры»"},
+                                   "value": {"type": "string", "description": "До 5 слов, без ключей настроек"},
                                    "why": {"type": "string",
-                                           "description": "Обязательно, простыми словами: почему так решено, а для "
-                                                          "фактов (размеры, отверстия) — что это значит для печати"}},
+                                           "description": "Обязательно, до 10 слов, обычными словами"}},
                     "required": ["what", "value", "why"]}},
-                "checks": {"type": "array", "items": {
+                "checks": {"type": "array", "description": "Только warning и problem; удачные проверки не перечисляй",
+                           "items": {
                     "type": "object",
-                    "properties": {"name": {"type": "string"},
+                    "properties": {"name": {"type": "string", "description": "1–3 слова"},
                                    "status": {"type": "string", "enum": ["ok", "warning", "problem"]},
-                                   "detail": {"type": "string"}},
+                                   "detail": {"type": "string", "description": "До 12 слов: что не так и что делать"}},
                     "required": ["name", "status"]}},
             },
             "required": ["stage", "title", "plain_summary"],
@@ -103,6 +105,9 @@ class Interaction:
     def interactive(self):
         return self._settings.get("interactive") != "0"
 
+    def confirmStages(self):
+        return self.interactive() and self._settings.get("confirm_stages") == "1"
+
     # ---- called by the agent thread ----
 
     def waiting(self):
@@ -121,7 +126,7 @@ class Interaction:
 
     def _ask(self, args):
         questions = _as_list(args.get("questions"))
-        questions = [q for q in questions if isinstance(q, dict) and q.get("question")][:6]
+        questions = [q for q in questions if isinstance(q, dict) and q.get("question")][:8]
         if not questions:
             # Models sometimes send the array as broken text: don't show an empty card, ask for a retry.
             return {"error": "Параметр questions должен быть массивом объектов вида "
@@ -148,7 +153,8 @@ class Interaction:
                             "selected": selected, "custom": custom or None,
                             "status": "answered" if (selected or custom) else "skipped"})
         return {"answers": answers,
-                "instruction": "Для пропущенных вопросов (status=skipped) реши сам и явно назови допущение."}
+                "instruction": "Для пропущенных вопросов (status=skipped) реши сам, без отдельного сообщения о "
+                               "допущениях. Свой вариант (custom) пользователя важнее кнопок."}
 
     def _stage(self, args):
         args = dict(args)
@@ -163,7 +169,8 @@ class Interaction:
         payload = {"stage": args.get("stage"), "title": args.get("title"),
                    "plain_summary": args.get("plain_summary"),
                    "decisions": args.get("decisions") or [], "checks": args.get("checks") or []}
-        if not self.interactive():
+        if not self.confirmStages():
+            # The report is kept in the chat but hidden in the panel until "Этапы работы: показывать".
             self._emit("stage", request_id=None, auto=True, **payload)
             return {"action": "continue", "auto_mode": True}
         response = self._wait("stage", **payload)

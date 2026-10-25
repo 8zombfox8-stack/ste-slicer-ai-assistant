@@ -12,7 +12,8 @@ _DEFAULTS = {
     "model": "",
     "output_dir": os.path.join(QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation), "STE_AI_results"),
     "machine_rate_rub": "300",
-    "interactive": "1",  # "1": questions and stage confirmations, "0": automatic mode
+    "interactive": "1",  # "1": clarifying questions, "0": automatic mode (no questions, no stops)
+    "confirm_stages": "0",  # "1": show each stage card and wait for «Продолжить»; beginners do not see stages
 }
 
 
@@ -42,6 +43,7 @@ class PluginSettings:
             "output_dir": self.get("output_dir"),
             "machine_rate_rub": self.get("machine_rate_rub"),
             "interactive": self.get("interactive") != "0",
+            "confirm_stages": self.get("confirm_stages") == "1",
             "api_key_set": bool(key),
             "api_key_hint": ("..." + key[-4:]) if len(key) > 4 else "",
         }

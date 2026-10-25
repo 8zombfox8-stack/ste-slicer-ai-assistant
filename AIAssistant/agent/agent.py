@@ -210,6 +210,7 @@ class Agent:
                 return
             self._messages.append({"role": "user", "content": self._userContent(text, attachments)})
             tools = AGENT_TOOLS + self._tools.openaiList()
+            prepared = False  # the part went through stage 7: the closing text is a summary of the cards
             for _ in range(MAX_TOOL_ROUNDS):
                 self._alive(run_id)
                 self._emit("thinking")
@@ -219,11 +220,14 @@ class Agent:
                 if not tool_calls:
                     content = self._russianOnly(run_id, content)
                     self._messages.append({"role": "assistant", "content": content})
-                    self._emit("assistant", text=content)
+                    # The in-slicer panel hides the closing summary of a full preparation.
+                    self._emit("assistant", text=content, summary=prepared)
                     return
+                prepared = prepared or any(_is_final_stage(call) for call in tool_calls)
                 self._messages.append({"role": "assistant", "content": content, "tool_calls": tool_calls})
                 if content.strip():
-                    self._emit("assistant", text=CJK_RE.sub("", content))
+                    # A remark between tool calls; the in-slicer panel shows it only with technical details on.
+                    self._emit("assistant", text=CJK_RE.sub("", content), interim=True)
                 for call in tool_calls:
                     self._runTool(run_id, call)
             # Step limit reached: ask for a summary without tools instead of dropping the work silently.
@@ -294,6 +298,15 @@ class Agent:
         self._emit("tool_result", name=name, ok=ok, result=result, call_id=call.get("id"))
         self._messages.append({"role": "tool", "tool_call_id": call.get("id"), "content": _compact(result)})
         self._persist()  # long runs: keep the chat on disk after every step
+
+
+def _is_final_stage(call):
+    if call.get("function", {}).get("name") != "stage_report":
+        return False
+    try:
+        return int(json.loads(call["function"].get("arguments") or "{}").get("stage") or 0) == 7
+    except (ValueError, TypeError):
+        return False
 
 
 def _compact(result):
