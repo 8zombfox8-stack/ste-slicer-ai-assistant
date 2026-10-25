@@ -217,23 +217,22 @@ function addQuestionsCard(ev) {
   setThinking(false);
   const card = document.createElement("div");
   card.className = "card questions";
-  let html = "<div class='card-title'>❓ Уточняющие вопросы</div>";
-  if (ev.intro) html += "<div class='card-text'>" + escapeHtml(ev.intro) + "</div>";
-  ev.questions.forEach((q, qi) => {
+  let html = ev.intro ? "<div class='card-title'>" + escapeHtml(ev.intro) + "</div>" : "";
+  ev.questions.forEach((q) => {
     // "Let the system decide" is a card-level button; drop duplicates the model may add as options.
     const options = (q.options || []).filter((o) => !SYSTEM_DECIDES.test(o));
     html += "<div class='q' data-id='" + escapeHtml(q.id) + "' data-multiple='" + (q.multiple ? 1 : 0) + "'>" +
-      "<div class='q-text'>" + (qi + 1) + ". " + escapeHtml(q.question) + "</div>" +
+      "<div class='q-text'>" + escapeHtml(q.question) + "</div>" +
       (q.why ? "<div class='q-why'>" + escapeHtml(q.why) + "</div>" : "") +
       "<div class='opts'>" + options.map((o) =>
         "<button type='button' class='opt'>" + escapeHtml(o) + "</button>").join("") + "</div>" +
-      "<input class='custom' placeholder='Свой вариант (необязательно)'></div>";
+      "<input class='custom' placeholder='" + (options.length ? "Свой вариант" : "Ваш ответ") + "'></div>";
   });
   if (ev.auto) {
     html += "<div class='card-note'>Автоматический режим: ассистент ответит на вопросы сам и назовёт допущения.</div>";
   } else {
-    html += "<div class='card-actions'><button type='button' class='primary send'>Ответить</button>" +
-      "<button type='button' class='ghost skip'>Пусть решит система</button></div>";
+    html += "<div class='card-actions'><button type='button' class='primary send'>Готово</button>" +
+      "<span class='card-note'>На пустые вопросы ассистент ответит сам</span></div>";
   }
   card.innerHTML = html;
   card.querySelectorAll(".q").forEach((qEl) => {
@@ -254,7 +253,6 @@ function addQuestionsCard(ev) {
       return { answers };
     };
     card.querySelector(".send").onclick = () => respond(ev.request_id, collect(false), card);
-    card.querySelector(".skip").onclick = () => respond(ev.request_id, collect(true), card);
     cards[ev.request_id] = card;
   } else {
     card.classList.add("done");
@@ -270,23 +268,21 @@ function addStageCard(ev) {
   setThinking(false);
   const card = document.createElement("div");
   card.className = "card stage";
-  let html = "<div class='card-title'>Этап " + escapeHtml(ev.stage) + " из 7 · " + escapeHtml(ev.title || "") + "</div>" +
+  let html = "<div class='card-title'>" + (ev.stage ? "Этап " + escapeHtml(ev.stage) + " из 7 · " : "") +
+    escapeHtml(ev.title || "") + "</div>" +
     "<div class='card-text'>" + escapeHtml(ev.plain_summary || "") + "</div>";
   if (!Array.isArray(ev.decisions)) ev.decisions = [];
   if (!Array.isArray(ev.checks)) ev.checks = [];
-  if (ev.decisions.length) {
-    // The "Почему" column is shown only when there is something to put in it.
-    const withWhy = ev.decisions.some((d) => (d.why || "").trim());
-    html += "<table class='md'><tr><th>Решение</th><th>Значение</th>" + (withWhy ? "<th>Почему</th>" : "") + "</tr>" +
-      ev.decisions.map((d) => "<tr><td>" + escapeHtml(d.what) + "</td><td><b>" + escapeHtml(d.value) + "</b></td>" +
-        (withWhy ? "<td>" + escapeHtml((d.why || "").trim() || "—") + "</td>" : "") + "</tr>").join("") + "</table>";
-  }
-  if (ev.checks && ev.checks.length) {
-    html += "<ul class='checks'>" + ev.checks.map((c) => "<li>" + (STATUS_ICON[c.status] || "•") + " <b>" +
-      escapeHtml(c.name) + "</b>" + (c.detail ? " — " + escapeHtml(c.detail) : "") + "</li>").join("") + "</ul>";
-  }
+  // Short lines for a beginner: "Материал: PLA — почему"; only warnings and problems are listed.
+  const issues = ev.checks.filter((c) => c.status !== "ok");  // no status: show as a warning
+  const lines = ev.decisions.map((d) => "<li><b>" + escapeHtml(d.what) + ":</b> " + escapeHtml(d.value) +
+    ((d.why || "").trim() ? " <span class='q-why'>— " + escapeHtml(d.why.trim()) + "</span>" : "") + "</li>")
+    .concat(issues.map((c) => "<li>" + (STATUS_ICON[c.status] || STATUS_ICON.warning) + " <b>" + escapeHtml(c.name) + "</b>" +
+      (c.detail ? " — " + escapeHtml(c.detail) : "") + "</li>"));
+  if (ev.checks.length && !issues.length) lines.push("<li>✅ Проверки пройдены</li>");
+  if (lines.length) html += "<ul class='checks'>" + lines.join("") + "</ul>";
   if (ev.auto) {
-    html += "<div class='card-note'>Автоматический режим: продолжаю без подтверждения.</div>";
+    html += "<div class='card-note'>Отчёт этапа (без остановки)</div>";
   } else {
     // One field and one button: empty field — continue, text in the field — send it as a change request.
     html += "<div class='change-box'><textarea placeholder='Что изменить? Например: «возьми PETG» или «уменьши заполнение». " +
@@ -325,7 +321,7 @@ function markResponded(ev) {
     card.querySelectorAll(".q").forEach((qEl) => {
       const a = r.answers[qEl.dataset.id] || {};
       qEl.querySelectorAll(".opt").forEach((b) => b.classList.toggle("on", (a.selected || []).includes(b.textContent)));
-      if (a.custom) qEl.querySelector(".custom").value = a.custom;
+      qEl.querySelector(".custom").hidden = true;  // the answered card shows only the chosen buttons
     });
   }
   const note = document.createElement("div");
