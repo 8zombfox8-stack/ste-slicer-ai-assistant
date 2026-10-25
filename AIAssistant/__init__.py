@@ -1,9 +1,16 @@
 from . import AIAssistant
+from . import AIStage
 
 
 def getMetaData():
-    return {}
+    return {
+        "stage": {
+            "name": "AI Ассистент",
+            "weight": 5
+        }
+    }
 
 
 def register(app):
-    return {"extension": AIAssistant.AIAssistant()}
+    core = AIAssistant.AIAssistant()
+    return {"extension": core, "stage": AIStage.AIStage(core)}

@@ -24,10 +24,12 @@ class AIAssistant(Extension):
     def __init__(self):
         super().__init__()
         self.setMenuName("AI Assistant")
-        self.addMenuItem("Открыть чат", self.showChat)
+        self.addMenuItem("Открыть чат в отдельном окне", self.showChat)
         self._server = None
-        self._settings = None
-        self._agent = None
+        self.settings = None
+        self.agent = None
+        self.tools = None
+        self.workspace = None
         # The chat server starts together with the slicer, so the "AI Assistant" launcher can find it.
         SteSlicerApplication.getInstance().callLater(self._startSafely)
 
@@ -37,16 +39,20 @@ class AIAssistant(Extension):
         except Exception:
             Logger.logException("e", "AI Assistant: failed to start the chat server")
 
+    def started(self):
+        self._ensureStarted()
+        return self
+
     def _ensureStarted(self):
         if self._server is not None:
             return
         app = SteSlicerApplication.getInstance()
-        self._settings = PluginSettings(app.getPreferences())
-        workspace = Workspace(self._settings)
-        tools = ToolRegistry(app, self._settings)
-        self._agent = Agent(self._settings, tools, workspace)
-        tools.setEventSink(self._agent.emit)
-        self._server = start_server(WEB_DIR, self._agent, self._settings, tools, workspace)
+        self.settings = PluginSettings(app.getPreferences())
+        self.workspace = Workspace(self.settings)
+        self.tools = ToolRegistry(app, self.settings)
+        self.agent = Agent(self.settings, self.tools, self.workspace)
+        self.tools.setEventSink(self.agent.emit)
+        self._server = start_server(WEB_DIR, self.agent, self.settings, self.tools, self.workspace)
         appwindow.write_port_file(self._server.server_port, os.path.abspath(sys.executable))
         Logger.log("i", "AI Assistant: server started on port %d", self._server.server_port)
 
